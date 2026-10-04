@@ -1,0 +1,15 @@
+English Cards
+
+The installer is English-Cards.apk.
+
+Put that file on the phone and tap it.
+Android will say it is not from the Play Store. Allow the install.
+If English Cards is already on the phone, this file updates that same app.
+Do not uninstall the old one first. Uninstalling deletes the words saved on the phone.
+The child's deck, pictures, and progress stay on the phone.
+
+The other files are the project, for editing on a computer.
+Screens are in src.
+Group pictures are in public/ui.
+Changing those files does not change the phone until a new installer is made.
+The android folder is the phone shell. It uses the same app name every time, so the next installer is an update, not a second app.
