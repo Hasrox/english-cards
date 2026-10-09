@@ -1,6 +1,6 @@
 # English Cards
 
-Offline English vocabulary app for a child. It runs as a web app and as an Android WebView app. The deck, pictures, and progress stay on the device.
+Offline English vocabulary app, mainly for Kids or new learners. It runs as a web-app and as an Android WebView app. The deck, pictures, and progress stay on the device.
 
 App id `me.englishcards.app`. Version 0.66.
 
@@ -8,11 +8,11 @@ App id `me.englishcards.app`. Version 0.66.
 
 - Word groups with pictures
 - Learn: see a new word, match it, spell it, then type it before it enters review
-- Scheduled review
+- Scheduled review notifications.
 - Games: Match, Letters, and Connect
-- Island map
+- Island map (rough idea, still in early devlopment)
 - Picture search inside the app, and photos from the phone
-- Sounds and speech
+- Sounds and TTS speech
 
 ## Build
 
@@ -41,6 +41,6 @@ node scripts/sync-android.mjs
 node scripts/build-apk.mjs
 ```
 
-`build-apk.mjs` writes `English-Cards.apk` in the project root. That file is not in git.
+`build-apk.mjs` writes `English-Cards.apk` in the project root.
 
 `android/local.properties` and `android/app/debug.keystore` stay on this machine. The keystore is the signing key, so the next installer updates the same app and keeps the saved deck.
