@@ -111,7 +111,10 @@ export function isLearned(row: Progress | undefined): boolean {
   return row.failCount < 2;
 }
 
-export function groupStats(words: Word[], progress: Record<string, Progress>): Map<string, { total: number; learned: number }> {
+export function groupStats(
+  words: Word[],
+  progress: Record<string, Progress>,
+): Map<string, { total: number; learned: number }> {
   const stats = new Map<string, { total: number; learned: number }>();
   for (const word of words) {
     const learned = isLearned(progress[word.id]);
@@ -154,7 +157,8 @@ function needRank(row: Progress, now: number): number {
 }
 
 export function quizChoices(word: Word, library: Word[], salt = 0): Word[] {
-  const other = (item: Word) => item.id !== word.id && item.lemma.toLowerCase() !== word.lemma.toLowerCase();
+  const other = (item: Word) =>
+    item.id !== word.id && item.lemma.toLowerCase() !== word.lemma.toLowerCase();
   const topic = library.filter((item) => other(item) && item.topic === word.topic);
   const sameKind = topic.filter((item) => item.pos === word.pos);
   const picked: Word[] = [];
@@ -200,9 +204,11 @@ export function practiceRound(
   now = Date.now(),
   limit = 16,
   rotate = 0,
+  includeNew = true,
 ): string[] {
   const rows = aliveRows(progress)
     .filter((row) => {
+      if (!includeNew && isNewState(row.card.state)) return false;
       const word = wordById(row.wordId);
       return word ? inGroup(word, row, groupId) : false;
     })
@@ -217,6 +223,19 @@ export function practiceRound(
   const ordered = rows.slice(start).concat(rows.slice(0, start));
   return ordered.slice(0, Math.min(limit, ordered.length)).map((row) => row.wordId);
 }
+
+/** 4-choice practice: already-introduced cards only. New cards stay on `/learn`. */
+export function practiceQuizIds(
+  progress: Record<string, Progress>,
+  groupId: string | undefined,
+  now = Date.now(),
+  limit = 16,
+  rotate = 0,
+): string[] {
+  return practiceRound(progress, groupId, now, limit, rotate, false);
+}
+
+export { practicePinnedIds } from "./practice-queue.ts";
 
 function toPlayWord(progress: Record<string, Progress>, id: string): PlayWord | null {
   const word = wordById(id);
@@ -279,7 +298,11 @@ export function nextSeen(seen: string[], dealt: string[], pool: number): string[
   return next;
 }
 
-function glossPool(progress: Record<string, Progress>, groupId: string | undefined, lettersOnly: boolean): PlayWord[] {
+function glossPool(
+  progress: Record<string, Progress>,
+  groupId: string | undefined,
+  lettersOnly: boolean,
+): PlayWord[] {
   const ids = practiceRound(progress, groupId, Date.now(), 2000, 0);
   const seen = new Set<string>();
   const out: PlayWord[] = [];
@@ -312,7 +335,11 @@ export function distinctWords(
   return draw(glossPool(progress, groupId, false), avoid, limit);
 }
 
-export function gamePoolSize(progress: Record<string, Progress>, groupId: string | undefined, lettersOnly = false): number {
+export function gamePoolSize(
+  progress: Record<string, Progress>,
+  groupId: string | undefined,
+  lettersOnly = false,
+): number {
   return glossPool(progress, groupId, lettersOnly).length;
 }
 
@@ -359,7 +386,9 @@ export function islandGroups(progress: Record<string, Progress>, now = Date.now(
 
   const groups: IslandGroup[] = [];
   if (slip.length > 0) {
-    groups.push(summarize(SLIP_ID, "Slipping", "Missed more than once. Revise these any time.", slip, now));
+    groups.push(
+      summarize(SLIP_ID, "Slipping", "Missed more than once. Revise these any time.", slip, now),
+    );
   }
 
   const topics: IslandGroup[] = [];
@@ -368,12 +397,22 @@ export function islandGroups(progress: Record<string, Progress>, now = Date.now(
     topics.push(summarize(topic, topicLabel(topic), hint, rows, now));
   }
   topics.sort(
-    (a, b) => b.due - a.due || b.slipping - a.slipping || b.learning - a.learning || b.words.length - a.words.length,
+    (a, b) =>
+      b.due - a.due ||
+      b.slipping - a.slipping ||
+      b.learning - a.learning ||
+      b.words.length - a.words.length,
   );
   return [...groups, ...topics];
 }
 
-function summarize(id: string, label: string, hint: string, rows: Progress[], now: number): IslandGroup {
+function summarize(
+  id: string,
+  label: string,
+  hint: string,
+  rows: Progress[],
+  now: number,
+): IslandGroup {
   let due = 0;
   let learning = 0;
   let fresh = 0;

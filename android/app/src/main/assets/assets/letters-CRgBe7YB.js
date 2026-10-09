@@ -1,1 +1,0 @@
-import{O as e,t}from"./store-CiDa5FiP.js";import{r as n}from"./index-CNw2Mygu.js";import{a as r,t as i}from"./chrome-Bt6b4JO4.js";import{n as a}from"./letters-BTKvX_-w.js";var o=e();function s(){let e=t(e=>e.ready),s=t(e=>e.listsReady),c=t(e=>e.error),{topic:l}=n.useSearch();return c?(0,o.jsx)(r,{message:c}):!e||!s?(0,o.jsx)(i,{}):(0,o.jsx)(a,{topic:l})}export{s as component};

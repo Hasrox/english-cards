@@ -24,20 +24,35 @@ function Today() {
   const deckCount = Object.keys(progress).length;
   const alive = Object.values(progress).filter((row) => !row.retired).length;
   const nextClock = snap.upcoming
-    ? new Date(snap.upcoming).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    ? new Date(snap.upcoming).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      })
     : null;
 
+  const hasDue = snap.dueCount > 0;
+  const hasNew = snap.newLeft > 0;
+
   let title = "Add the words you want.";
-  let detail = "Type your own, or take them from the open lists. Nothing is studied until you add it.";
+  let detail =
+    "Type your own, or take them from the open lists. Nothing is studied until you add it.";
   if (deckCount === 0) {
     title = "Add the words you want.";
-    detail = "Type your own, or take them from the open lists. Nothing is studied until you add it.";
-  } else if (snap.dueCount > 0) {
-    title = snap.dueCount === 1 ? "1 card is due." : `${snap.dueCount} cards are due.`;
-    detail = "Reviews come first. Pick the right word from four in the same group. A miss counts as didn't know.";
-  } else if (snap.newLeft > 0) {
+    detail =
+      "Type your own, or take them from the open lists. Nothing is studied until you add it.";
+  } else if (hasDue && snap.reviewsFirst) {
+    title =
+      snap.dueCount === 1 ? "1 card is due." : `${snap.dueCount} cards are due.`;
+    detail =
+      "Reviews come first today. Finish due cards before starting new words. Pick the right word from four in the same group.";
+  } else if (hasDue) {
+    title =
+      snap.dueCount === 1 ? "1 card is due." : `${snap.dueCount} cards are due.`;
+    detail =
+      "Reviews come first. Pick the right word from four in the same group. A miss counts as didn't know.";
+  } else if (hasNew) {
     title = "No reviews waiting.";
-    detail = `${snap.newLeft} new ${snap.newLeft === 1 ? "word" : "words"} can start today. Pick the right word from four in the same group.`;
+    detail = `${snap.newLeft} new ${snap.newLeft === 1 ? "word" : "words"} can start today. Learn them first — see, match, spell, then type.`;
   } else {
     title = "Nothing is scheduled.";
     detail =
@@ -46,11 +61,23 @@ function Today() {
         : "The deck has nothing left to start.";
   }
 
+  // Primary: review when due; Learn when no due and new room remains.
+  // reviewsFirst still prefers review first; Learn stays secondary when both exist.
+  const primaryIsReview = hasDue;
+  const primaryIsLearn = !hasDue && hasNew;
+  const showLearnSecondary = hasDue && hasNew && !snap.reviewsFirst;
+  const showPractice =
+    alive > 0 && (deckCount > 0 || hasDue || hasNew || !snap.canStart);
+
   return (
     <Frame dock>
       <header className="safe-top flex items-center justify-between px-6 pb-2">
         <p className="text-sm text-muted">{weekdayLabel()}</p>
-        <Link to="/settings" aria-label="Settings" className="inline-flex size-11 items-center justify-center rounded-full text-ink">
+        <Link
+          to="/settings"
+          aria-label="Settings"
+          className="inline-flex size-11 items-center justify-center rounded-full text-ink"
+        >
           <img src="/ui/settings.png" alt="" className="size-7 object-contain" />
         </Link>
       </header>
@@ -59,7 +86,9 @@ function Today() {
         {deckCount === 0 ? (
           <img src="/ui/empty-deck.png" alt="" className="mt-6 h-40 w-full object-contain" />
         ) : null}
-        <p className="mt-4 font-display text-3xl leading-tight tracking-tight text-balance">{title}</p>
+        <p className="mt-4 font-display text-3xl leading-tight tracking-tight text-balance">
+          {title}
+        </p>
         <p className="mt-3 max-w-sm text-pretty text-muted">{detail}</p>
         <div className="mt-8 grid grid-cols-2 gap-3">
           <Stat value={snap.dueCount} label="Due" />
@@ -71,14 +100,35 @@ function Today() {
         {!snap.canStart && nextClock ? (
           <p className="mt-5 text-sm text-muted">Next card at {nextClock}.</p>
         ) : null}
-        {snap.canStart ? (
+
+        {primaryIsReview ? (
           <Link
             to="/review"
             className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-accent px-5 text-base font-medium text-paper"
           >
-            {snap.dueCount > 0 ? "Start review" : "Learn new words"}
+            Start review
           </Link>
-        ) : deckCount === 0 ? (
+        ) : null}
+
+        {primaryIsLearn ? (
+          <Link
+            to="/learn"
+            className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-accent px-5 text-base font-medium text-paper"
+          >
+            Learn new words
+          </Link>
+        ) : null}
+
+        {showLearnSecondary ? (
+          <Link
+            to="/learn"
+            className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-line px-5 text-base font-medium"
+          >
+            Learn new words
+          </Link>
+        ) : null}
+
+        {deckCount === 0 ? (
           <Link
             to="/words"
             className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-accent px-5 text-base font-medium text-paper"
@@ -86,17 +136,21 @@ function Today() {
             Add words
           </Link>
         ) : null}
-        {alive > 0 ? (
+
+        {showPractice ? (
           <Link
             to="/review"
             search={{ mode: "practice" }}
             className={`inline-flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-medium ${
-              snap.canStart ? "mt-3 border border-line" : "mt-8 bg-accent text-paper"
+              primaryIsReview || primaryIsLearn || showLearnSecondary
+                ? "mt-3 border border-line"
+                : "mt-8 bg-accent text-paper"
             }`}
           >
             Practice again
           </Link>
         ) : null}
+
         {fact ? <p className="mt-6 text-sm tabular-nums text-muted">{fact}</p> : null}
         <p className="mt-auto pt-10 text-sm text-muted">
           <Link to="/words" className="text-ink underline decoration-line underline-offset-4">

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { chromium } from "playwright";
 import { checkedOutputPath, checkedUrl } from "./browser-guard.mjs";
 import { computeBrandWarnings } from "./brand-check.mjs";
@@ -27,10 +27,20 @@ if (args.error) {
 }
 
 const url = checkedUrl(args.url);
-const outPng = checkedOutputPath(args.outPng, ["/workspace"]);
+const outPng = checkedOutputPath(args.outPng, [
+  "/workspace",
+  join(process.cwd(), "screenshots"),
+]);
 const derived = derivedPaths(outPng);
-const mobilePng = checkedOutputPath(derived.mobilePng, ["/workspace"]);
-const outJson = checkedOutputPath(derived.verdictJson, ["/workspace"], "verdict JSON");
+const mobilePng = checkedOutputPath(derived.mobilePng, [
+  "/workspace",
+  join(process.cwd(), "screenshots"),
+]);
+const outJson = checkedOutputPath(
+  derived.verdictJson,
+  ["/workspace", join(process.cwd(), "screenshots")],
+  "verdict JSON",
+);
 
 const MAX_BASELINE_BYTES = 1024 * 1024;
 const baselineRequested = Boolean(args.baseline);
@@ -92,6 +102,8 @@ let browser = null;
 try {
   browser = await chromium.launch({
     headless: true,
+    // System Chrome on the Windows dev machine (bundled Chromium not installed).
+    channel: process.env.BROWSER_CHANNEL || "chrome",
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
   });
 

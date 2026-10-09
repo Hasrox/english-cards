@@ -10,7 +10,10 @@ export type EffectName = keyof typeof SRC;
 export function playEffect(name: EffectName): HTMLAudioElement | null {
   if (typeof Audio === "undefined") return null;
   const audio = new Audio(SRC[name]);
-  void audio.play().catch(() => undefined);
+  // Warn (not error) on failure so a missing asset is visible in remote
+  // debugging without tripping console-error checks — this is exactly how
+  // the "no sounds in the APK" packaging bug stayed hidden.
+  void audio.play().catch((err) => console.warn(`sound "${name}" failed:`, err));
   return audio;
 }
 

@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { downloadThumb, searchPictures, type ImageHit } from "@/lib/cards/openverse";
-import { useVault } from "@/lib/cards/store";
 import { GhostButton, PrimaryButton } from "./chrome";
+import { creditFor, mergeHits, type ImageHit } from "@/lib/cards/picture-hits";
+import {
+  closePictureSearch,
+  downloadPicture,
+  morePictures,
+  pictureSearchAvailable,
+  searchPictures,
+} from "@/lib/cards/picture-search";
+import { useVault } from "@/lib/cards/store";
 
 export function PicturePicker({
   wordId,
@@ -17,37 +24,71 @@ export function PicturePicker({
   const setPicture = useVault((state) => state.setPicture);
   const [query, setQuery] = useState(lemma);
   const [hits, setHits] = useState<ImageHit[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "error" | "unavailable">("ready");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const request = useRef(0);
+  const searched = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      closePictureSearch();
+      return;
+    }
     setQuery(lemma);
+    setHits([]);
+    setMessage("");
+    setLoadingMore(false);
+    setSaving(null);
+    searched.current = false;
+    if (!pictureSearchAvailable()) {
+      setStatus("unavailable");
+      setMessage("Search works in the phone app. You can add a photo from this phone instead.");
+      return;
+    }
     void runSearch(lemma);
-  }, [open, lemma]);
+    return () => {
+      closePictureSearch();
+    };
+  }, [open, lemma]); // eslint-disable-line react-hooks/exhaustive-deps -- search on open/lemma only
 
   async function runSearch(term: string) {
     const token = ++request.current;
     setStatus("loading");
-    setMessage("");
-    setHits([]);
+    setMessage("Looking up pictures…");
+    setLoadingMore(false);
     try {
       const next = await searchPictures(term.trim() || lemma);
       if (request.current !== token) return;
+      searched.current = true;
       setHits(next);
       setStatus("ready");
-      if (next.length === 0) setMessage("Nothing useful came back. The example can carry this card.");
+      setMessage(
+        next.length === 0 ? "Nothing useful came back. You can add a photo from this phone instead." : "",
+      );
     } catch (error) {
       if (request.current !== token) return;
+      searched.current = false;
       setStatus("error");
-      setMessage(
-        error instanceof Error
-          ? `${error.message} You can add a photo from this phone instead.`
-          : "No connection. You can add a photo from this phone instead.",
-      );
+      setHits([]);
+      setMessage(error instanceof Error ? error.message : "Search did not work. You can add a photo from this phone instead.");
+    }
+  }
+
+  async function runMore() {
+    if (loadingMore || status === "loading") return;
+    setLoadingMore(true);
+    setMessage("");
+    try {
+      const next = await morePictures();
+      setHits((current) => mergeHits(current, next));
+      if (next.length === 0) setMessage("No more pictures right now.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not load more pictures.");
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -55,8 +96,14 @@ export function PicturePicker({
     setSaving(hit.id);
     setMessage("");
     try {
-      const blob = await downloadThumb(hit.thumbnail);
-      await setPicture(wordId, blob, hit.credit);
+      let blob: Blob;
+      try {
+        blob = await downloadPicture(hit.url);
+      } catch (first) {
+        if (hit.thumbnail === hit.url) throw first;
+        blob = await downloadPicture(hit.thumbnail);
+      }
+      await setPicture(wordId, blob, creditFor(hit, lemma));
       onClose();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The picture could not be saved.");
@@ -84,15 +131,18 @@ export function PicturePicker({
 
   if (!open) return null;
 
+  const canSearch = status !== "unavailable";
+  const canMore = canSearch && searched.current && status !== "loading" && hits.length > 0;
+
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40 sm:items-center" role="presentation">
+    <div className="fixed inset-0 z-50 flex justify-center bg-ink/40" role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="picture-title"
-        className="safe-bottom flex max-h-[92dvh] w-full max-w-md flex-col rounded-t-3xl bg-paper text-ink sm:rounded-3xl"
+        className="flex h-dvh w-full max-w-md flex-col bg-paper text-ink"
       >
-        <div className="flex items-center justify-between px-5 pt-5">
+        <div className="safe-top flex items-center justify-between px-5 pt-2">
           <h2 id="picture-title" className="font-display text-2xl">
             A picture for {lemma}
           </h2>
@@ -104,59 +154,82 @@ export function PicturePicker({
           className="flex gap-2 px-5 pt-4"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!canSearch || status === "loading") return;
             void runSearch(query);
           }}
         >
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search Openverse"
+            aria-label="Search pictures"
             className="min-h-12 flex-1 rounded-full border border-line bg-card px-4 text-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           />
-          <PrimaryButton type="submit" className="px-4" disabled={status === "loading"}>
+          <PrimaryButton type="submit" className="px-4" disabled={!canSearch || status === "loading"}>
             Search
           </PrimaryButton>
         </form>
-        <p className="px-5 pt-3 text-sm text-muted">Openverse. Pick one. It stays on this phone, with the credit.</p>
+        <p className="px-5 pt-3 text-sm text-muted">
+          {status === "unavailable"
+            ? "Pick a photo from this phone, or search on the phone app."
+            : "Google pictures. Pick one. It stays on this phone."}
+        </p>
         {message ? <p className="px-5 pt-3 text-sm text-ink">{message}</p> : null}
-        <div className="grid flex-1 grid-cols-2 gap-3 overflow-y-auto px-5 py-4">
-          {status === "loading"
-            ? Array.from({ length: 4 }, (_, index) => (
-                <div key={index} className="aspect-square animate-pulse rounded-2xl bg-line" />
-              ))
-            : hits.map((hit) => (
-                <button
-                  key={hit.id}
-                  type="button"
-                  disabled={saving !== null}
-                  onClick={() => void choose(hit)}
-                  className="overflow-hidden rounded-2xl border border-line bg-card text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-60"
-                >
-                  <img src={hit.thumbnail} alt={hit.title} className="aspect-square w-full object-cover" />
-                  <span className="block px-2 py-2 text-xs leading-snug text-muted">
-                    {saving === hit.id ? "Saving…" : `${hit.creator} · ${hit.license}`}
-                  </span>
-                </button>
-              ))}
+        <div className="grid flex-1 grid-cols-2 content-start gap-3 overflow-y-auto px-5 py-4">
+          {hits.map((hit) => (
+            <button
+              key={hit.id}
+              type="button"
+              disabled={saving !== null}
+              onClick={() => void choose(hit)}
+              className="overflow-hidden rounded-2xl border border-line bg-card text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-60"
+            >
+              <img
+                src={hit.thumbnail}
+                alt={hit.title || lemma}
+                referrerPolicy="no-referrer"
+                className="aspect-square w-full object-cover"
+              />
+              <span className="block px-2 py-2 text-xs leading-snug text-muted">
+                {saving === hit.id ? "Saving…" : "Use this picture"}
+              </span>
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2 border-t border-line px-5 py-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              void onFile(file);
-            }}
-          />
-          <GhostButton type="button" className="flex-1 border border-line bg-card" onClick={() => fileRef.current?.click()}>
-            Photo from this phone
-          </GhostButton>
-          <GhostButton type="button" className="flex-1" onClick={onClose}>
-            No picture
-          </GhostButton>
+        <div className="safe-bottom flex flex-col gap-2 border-t border-line px-5 pt-3 pb-4">
+          {canMore ? (
+            <GhostButton
+              type="button"
+              className="w-full border border-line bg-card"
+              disabled={loadingMore || saving !== null}
+              onClick={() => void runMore()}
+            >
+              {loadingMore ? "Loading more…" : "Load more"}
+            </GhostButton>
+          ) : null}
+          <div className="flex gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void onFile(file);
+              }}
+            />
+            <GhostButton
+              type="button"
+              className="flex-1 border border-line bg-card"
+              disabled={saving !== null}
+              onClick={() => fileRef.current?.click()}
+            >
+              Photo from this phone
+            </GhostButton>
+            <GhostButton type="button" className="flex-1" onClick={onClose}>
+              No picture
+            </GhostButton>
+          </div>
         </div>
       </div>
     </div>

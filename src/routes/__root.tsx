@@ -1,9 +1,11 @@
 import { createRootRoute, HeadContent, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Dock, showDock } from "@/components/dock";
+import { ScreenTransition } from "@/components/chrome";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { AuthProvider } from "@/lib/auth/provider";
 import { useVault } from "@/lib/cards/store";
+import { MotionProvider } from "@/lib/motion/motion-provider";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "English Cards";
@@ -19,9 +21,9 @@ function VaultBoot() {
 function Screen() {
   const path = useRouterState({ select: (state) => state.location.pathname });
   return (
-    <div key={path} className="screen-in">
+    <ScreenTransition key={path}>
       <Outlet />
-    </div>
+    </ScreenTransition>
   );
 }
 function DockGate() {
@@ -61,12 +63,14 @@ export const Route = createRootRoute({
         <HeadContent />
       </head>
       <body>
-        <PreviewHostBridge />
-        <AuthProvider>
-          <VaultBoot />
-          <Screen />
-          <DockGate />
-        </AuthProvider>
+        <MotionProvider>
+          <PreviewHostBridge />
+          <AuthProvider>
+            <VaultBoot />
+            <Screen />
+            <DockGate />
+          </AuthProvider>
+        </MotionProvider>
         <Scripts />
       </body>
     </html>

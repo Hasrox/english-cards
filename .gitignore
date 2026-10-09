@@ -2,8 +2,10 @@ node_modules
 .vercel
 .tanstack
 .grok
+.xgrok
 artifacts
 screenshots
+/Screenshot_*.jpg
 attachments
 English-Cards-files
 English-Cards-files.zip
@@ -23,3 +25,8 @@ android/.idea
 
 dist
 .output
+
+docs/
+READ-ME.txt
+massage_to_user_UI_elements.txt
+user_ui_massages_replies/

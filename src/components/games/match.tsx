@@ -5,6 +5,10 @@ import { usePracticeClock } from "@/lib/cards/clock";
 import { playEffect, playFinish } from "@/lib/cards/sounds";
 import { speakEnglish } from "@/lib/cards/speech";
 import { useVault } from "@/lib/cards/store";
+import { haptics } from "@/lib/motion/haptics";
+import { EASE } from "@/lib/motion/tokens";
+import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
+import { m } from "motion/react";
 import { EMPTY_TALLY, ScoreReport, Sparkles, addTap, type Tally } from "@/components/score-report";
 import { GameFrame } from "./letters";
 
@@ -24,7 +28,10 @@ export function MatchGame({ topic }: { topic?: string }) {
   const markPracticeDay = useVault((state) => state.markPracticeDay);
   const [round, setRound] = useState(0);
   const [seen, setSeen] = useState<string[]>([]);
-  const words = useMemo(() => distinctWords(useVault.getState().progress, topic, 4, seen), [round, seen, topic]);
+  const words = useMemo(
+    () => distinctWords(useVault.getState().progress, topic, 4, seen),
+    [round, seen, topic],
+  );
   const tiles = useMemo(() => tilesFor(words), [words]);
   const [up, setUp] = useState<string[]>([]);
   const [matched, setMatched] = useState<string[]>([]);
@@ -39,6 +46,7 @@ export function MatchGame({ topic }: { topic?: string }) {
   const playedEnd = useRef(false);
 
   const saving = useRef(false);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     if (!saved) {
@@ -67,9 +75,16 @@ export function MatchGame({ topic }: { topic?: string }) {
   if (words.length < 4) {
     return (
       <GameFrame title="Match" topic={topic}>
-        <p className="font-display text-4xl tracking-tight text-balance">Need four different meanings.</p>
-        <p className="mt-3 text-pretty text-muted">Add a few more words, or pick another group on the island.</p>
-        <Link to="/words" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper">
+        <p className="font-display text-4xl tracking-tight text-balance">
+          Need four different meanings.
+        </p>
+        <p className="mt-3 text-pretty text-muted">
+          Add a few more words, or pick another group on the island.
+        </p>
+        <Link
+          to="/words"
+          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper"
+        >
           Add words
         </Link>
       </GameFrame>
@@ -83,14 +98,22 @@ export function MatchGame({ topic }: { topic?: string }) {
         <h1 className="font-display text-5xl tracking-tight">Paired.</h1>
         <ScoreReport tally={tally} />
         <p className="mt-3 text-pretty text-muted">
-          {misses === 0 ? "Every pair was right the first time." : "A wrong flip brings that card back. A clean pair does not push it further away."}
+          {misses === 0
+            ? "Every pair was right the first time."
+            : "A wrong flip brings that card back. A clean pair does not push it further away."}
         </p>
         <button
           type="button"
           className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper"
           onClick={() => {
             const progress = useVault.getState().progress;
-            setSeen((current) => nextSeen(current, words.map((word) => word.id), gamePoolSize(progress, topic)));
+            setSeen((current) =>
+              nextSeen(
+                current,
+                words.map((word) => word.id),
+                gamePoolSize(progress, topic),
+              ),
+            );
             lock.current = false;
             saving.current = false;
             setRound((value) => value + 1);
@@ -123,6 +146,7 @@ export function MatchGame({ topic }: { topic?: string }) {
     setTally((current) => addTap(current, hit));
     if (hit && first) {
       playEffect("correct");
+      haptics.correct();
       setSparkId(first.wordId);
       setWrongKeys([]);
       setShakeKey(null);
@@ -130,6 +154,7 @@ export function MatchGame({ topic }: { topic?: string }) {
       if (word) window.setTimeout(() => speakEnglish(word.lemma), 450);
     } else if (first) {
       playEffect("incorrect");
+      haptics.wrong();
       setWrongKeys(next);
       setSparkId(null);
       const partner = tiles.find((item) => item.wordId === first.wordId && item.key !== first.key);
@@ -138,7 +163,9 @@ export function MatchGame({ topic }: { topic?: string }) {
     }
     window.setTimeout(() => {
       if (hit && first) {
-        setMatched((current) => (current.includes(first.wordId) ? current : [...current, first.wordId]));
+        setMatched((current) =>
+          current.includes(first.wordId) ? current : [...current, first.wordId],
+        );
       }
       setUp([]);
       setWrongKeys([]);
@@ -148,30 +175,63 @@ export function MatchGame({ topic }: { topic?: string }) {
 
   return (
     <GameFrame title="Match" topic={topic}>
-      <p className="text-sm text-muted">Flip an English word and its Arabic. Wrong flips count as a miss.</p>
+      <p className="text-sm text-muted">
+        Flip an English word and its Arabic. Wrong flips count as a miss.
+      </p>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {tiles.map((tile) => {
+        {tiles.map((tile, index) => {
           const open = up.includes(tile.key) || matched.includes(tile.wordId);
           const wrong = wrongKeys.includes(tile.key);
           const shake = shakeKey === tile.key;
+          const isMatched = matched.includes(tile.wordId);
+          const animate =
+            shake && !reduced
+              ? {
+                  opacity: 1,
+                  x: [0, -6, 6, 0],
+                  scale: 1,
+                  transition: { duration: 0.42, times: [0, 0.25, 0.75, 1] },
+                }
+              : isMatched && !reduced
+                ? {
+                    opacity: 1,
+                    x: 0,
+                    scale: [1, 1.06, 1],
+                    transition: { duration: 0.5, ease: EASE.standard },
+                  }
+                : {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    transition: { duration: 0.3, delay: Math.min(index, 8) * 0.04 },
+                  };
           return (
-            <button
+            <m.button
               key={tile.key}
               type="button"
+              data-tile=""
               onClick={() => flip(tile.key)}
               className={`relative flex min-h-20 items-center justify-center rounded-2xl border px-3 text-center ${
-                wrong ? "answer-wrong" : matched.includes(tile.wordId) ? "border-accent bg-card" : "border-line bg-card"
-              } ${shake ? "shake" : ""}`}
+                wrong ? "answer-wrong" : isMatched ? "border-accent bg-card" : "border-line bg-card"
+              }`}
+              initial={reduced ? false : { opacity: 0, scale: 0.88 }}
+              animate={animate}
             >
               {sparkId === tile.wordId ? <Sparkles /> : null}
               {open ? (
-                <span lang={tile.side === "ar" ? "ar" : "en"} dir={tile.side === "ar" ? "rtl" : "ltr"} className={tile.side === "ar" ? "font-arabic text-xl" : "font-display text-2xl"}>
+                <span
+                  lang={tile.side === "ar" ? "ar" : "en"}
+                  dir={tile.side === "ar" ? "rtl" : "ltr"}
+                  className={tile.side === "ar" ? "font-arabic text-xl" : "font-display text-2xl"}
+                >
                   {tile.label}
                 </span>
               ) : (
-                <span className="text-sm text-muted">{tile.side === "ar" ? "Arabic" : "English"}</span>
+                <span className="text-sm text-muted">
+                  {tile.side === "ar" ? "Arabic" : "English"}
+                </span>
               )}
-            </button>
+            </m.button>
           );
         })}
       </div>

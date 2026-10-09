@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DaysRouteImport } from './routes/days'
 import { Route as IslandRouteImport } from './routes/island'
+import { Route as LearnRouteImport } from './routes/learn'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PlayIndexRouteImport } from './routes/play/index'
@@ -34,6 +35,11 @@ const DaysRoute = DaysRouteImport.update({
 const IslandRoute = IslandRouteImport.update({
   id: '/island',
   path: '/island',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRoute = ReviewRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/days': typeof DaysRoute
   '/island': typeof IslandRoute
+  '/learn': typeof LearnRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/play/connect': typeof PlayConnectRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/days': typeof DaysRoute
   '/island': typeof IslandRoute
+  '/learn': typeof LearnRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/play/connect': typeof PlayConnectRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/days': typeof DaysRoute
   '/island': typeof IslandRoute
+  '/learn': typeof LearnRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/play/connect': typeof PlayConnectRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/days'
     | '/island'
+    | '/learn'
     | '/review'
     | '/settings'
     | '/play/connect'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/days'
     | '/island'
+    | '/learn'
     | '/review'
     | '/settings'
     | '/play/connect'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/days'
     | '/island'
+    | '/learn'
     | '/review'
     | '/settings'
     | '/play/connect'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DaysRoute: typeof DaysRoute
   IslandRoute: typeof IslandRoute
+  LearnRoute: typeof LearnRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   PlayConnectRoute: typeof PlayConnectRoute
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/island'
       fullPath: '/island'
       preLoaderRoute: typeof IslandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DaysRoute: DaysRoute,
   IslandRoute: IslandRoute,
+  LearnRoute: LearnRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   PlayConnectRoute: PlayConnectRoute,

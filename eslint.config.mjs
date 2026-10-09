@@ -15,6 +15,12 @@ export default tseslint.config(
       ".nitro/**",
       "node_modules/**",
       "src/routeTree.gen.ts",
+      // Generated build output copied into the Android WebView shell
+      // (equivalent to dist/ — never lint minified bundles).
+      "android/app/src/main/assets/**",
+      // Gradle build outputs (gitignored; created by assembleDebug).
+      "android/**/build/**",
+      "android/.gradle/**",
     ],
   },
   js.configs.recommended,

@@ -1,5 +1,33 @@
 import { cn } from "@/lib/cn";
+import { TRANSITION } from "@/lib/motion/tokens";
+import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
+import { m } from "motion/react";
 import type { ReactNode } from "react";
+
+/**
+ * Shared screen-enter transition (PRD FR-5.1 · Phase 1) — the Motion
+ * replacement for the `.screen-in` CSS keyframe: fade + 10px rise over
+ * 320ms with the app's standard easing (visually identical).
+ *
+ * Mounted once at the route wrapper in `__root.tsx` `Screen()`, so every
+ * route inherits it. Under `prefers-reduced-motion` the transition duration
+ * collapses to 0 — screens appear instantly, parity with the CSS media
+ * query in `src/styles.css`. The `screen-transition` class is a selector
+ * test hook only; no CSS is attached to it.
+ */
+export function ScreenTransition({ children }: { children: ReactNode }) {
+  const reduced = useReducedMotion();
+  return (
+    <m.div
+      className="screen-transition"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0 } : TRANSITION.standard}
+    >
+      {children}
+    </m.div>
+  );
+}
 
 export function Frame({
   children,

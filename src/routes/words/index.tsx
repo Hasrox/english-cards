@@ -11,17 +11,33 @@ import { categoryArt } from "@/lib/cards/category-art";
 import { useVault } from "@/lib/cards/store";
 import { dueLabel } from "@/lib/cards/time";
 import { LEECH_AT } from "@/lib/cards/types";
+import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
+import { m } from "motion/react";
 
 export const Route = createFileRoute("/words/")({ component: WordsPage });
 
-function easiestPending(words: Word[], progress: Record<string, { retired?: boolean } | undefined>, count = 20): Word[] {
+function easiestPending(
+  words: Word[],
+  progress: Record<string, { retired?: boolean } | undefined>,
+  count = 20,
+): Word[] {
   return words
     .filter((word) => !progress[word.id])
     .sort((a, b) => a.rank - b.rank || a.lemma.localeCompare(b.lemma))
     .slice(0, count);
 }
 
-const POS_OPTIONS: Pos[] = ["noun", "verb", "adjective", "adverb", "preposition", "pronoun", "determiner", "conjunction", "number"];
+const POS_OPTIONS: Pos[] = [
+  "noun",
+  "verb",
+  "adjective",
+  "adverb",
+  "preposition",
+  "pronoun",
+  "determiner",
+  "conjunction",
+  "number",
+];
 
 function WordsPage() {
   const ready = useVault((state) => state.ready);
@@ -38,6 +54,7 @@ function WordList() {
   const library = useVault((state) => state.library);
   const addToDeck = useVault((state) => state.addToDeck);
   const addOwn = useVault((state) => state.addOwn);
+  const reduced = useReducedMotion();
   const [tab, setTab] = useState<"mine" | "lists">("mine");
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -114,7 +131,11 @@ function WordList() {
     setBusy(true);
     const batch = easiestPending(words, progress);
     const count = await addToDeck(batch.map((word) => word.id));
-    setNote(count === 0 ? `Those ${label} words are already in your deck.` : `Added ${count} from ${label}.`);
+    setNote(
+      count === 0
+        ? `Those ${label} words are already in your deck.`
+        : `Added ${count} from ${label}.`,
+    );
     setBusy(false);
     setTab("mine");
   }
@@ -131,10 +152,23 @@ function WordList() {
           Your deck is only what you add. The open lists are there to pick from.
         </p>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <TabButton active={tab === "mine"} onClick={() => { setTab("mine"); setLimit(40); }}>
+          <TabButton
+            active={tab === "mine"}
+            onClick={() => {
+              setTab("mine");
+              setLimit(40);
+            }}
+          >
             Mine · {Object.keys(progress).length}
           </TabButton>
-          <TabButton active={tab === "lists"} onClick={() => { setTab("lists"); setLimit(40); setCategory(null); }}>
+          <TabButton
+            active={tab === "lists"}
+            onClick={() => {
+              setTab("lists");
+              setLimit(40);
+              setCategory(null);
+            }}
+          >
             Lists · {library.length}
           </TabButton>
         </div>
@@ -217,9 +251,14 @@ function WordList() {
             All groups
           </button>
           <div className="mt-2 flex items-center gap-3">
-            <img src={categoryArt(category)} alt="" className="size-14 shrink-0 rounded-full object-cover" />
+            <img
+              src={categoryArt(category)}
+              alt=""
+              className="size-14 shrink-0 rounded-full object-cover"
+            />
             <p className="text-sm text-pretty text-muted">
-              Add the 20 most common ones that are not in your deck yet, or add a single word below. Learning a word fills every group it belongs to.
+              Add the 20 most common ones that are not in your deck yet, or add a single word below.
+              Learning a word fills every group it belongs to.
             </p>
           </div>
           {(() => {
@@ -238,7 +277,9 @@ function WordList() {
                     onClick={() => void onAddGroup(group.words, topicLabel(group.id))}
                     className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-accent px-5 text-sm font-medium text-paper disabled:opacity-40"
                   >
-                    {batch === 20 ? `Add 20 ${topicLabel(group.id)} words` : `Add the last ${batch}`}
+                    {batch === 20
+                      ? `Add 20 ${topicLabel(group.id)} words`
+                      : `Add the last ${batch}`}
                   </button>
                 )}
               </>
@@ -247,7 +288,8 @@ function WordList() {
         </div>
       ) : (
         <p className="px-5 pb-3 text-sm text-pretty text-muted">
-          Groups are by meaning. Top 100 and Top 500 are the most common words, so a word can sit in more than one group. Learning it fills every bar it belongs to.
+          Groups are by meaning. Top 100 and Top 500 are the most common words, so a word can sit in
+          more than one group. Learning it fills every bar it belongs to.
         </p>
       )}
       {tab === "lists" && !needle && !category ? (
@@ -256,10 +298,23 @@ function WordList() {
             const batch = Math.min(20, group.left);
             return (
               <li key={group.id} className="rounded-3xl border border-line bg-card px-4 py-4">
-                <button type="button" className="flex w-full items-center gap-3 text-left" onClick={() => { setCategory(group.id); setLimit(40); }}>
-                  <img src={categoryArt(group.id)} alt="" className="size-16 shrink-0 rounded-full object-cover" />
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 text-left"
+                  onClick={() => {
+                    setCategory(group.id);
+                    setLimit(40);
+                  }}
+                >
+                  <img
+                    src={categoryArt(group.id)}
+                    alt=""
+                    className="size-16 shrink-0 rounded-full object-cover"
+                  />
                   <span>
-                    <span className="font-display text-3xl tracking-tight">{topicLabel(group.id)}</span>
+                    <span className="font-display text-3xl tracking-tight">
+                      {topicLabel(group.id)}
+                    </span>
                     <span className="mt-1 block text-sm text-muted">
                       {group.words.length} words · {group.left} not in your deck
                     </span>
@@ -283,92 +338,133 @@ function WordList() {
           })}
         </ul>
       ) : (
-      <ul className="flex-1 px-5 pb-8">
-        {tab === "mine" && deckRows.length === 0 ? (
-          <li className="py-6 text-sm text-pretty text-muted">
-            Nothing in your deck yet. Add a word above, or open the lists.
-          </li>
-        ) : null}
-        {tab === "lists" && libraryRows.length === 0 ? <li className="py-8 text-sm text-muted">No word matches.</li> : null}
-        {tab === "mine"
-          ? deckRows.map((word) => {
-              const row = progress[word.id];
-              const status = !row || row.retired
-                ? row?.retired
-                  ? "Retired"
-                  : "Not started"
-                : isNewState(row.card.state)
-                  ? "Not started"
-                  : dueLabel(row.card.due);
-              const leech = (row?.failCount ?? 0) >= LEECH_AT;
-              return (
-                <li key={word.id} className="border-b border-line">
-                  <Link
-                    to="/words/$wordId"
-                    params={{ wordId: word.id }}
-                    className="flex min-h-14 items-center justify-between gap-4 py-3"
+        <ul className="flex-1 px-5 pb-8">
+          {tab === "mine" && deckRows.length === 0 ? (
+            <li className="py-6 text-sm text-pretty text-muted">
+              Nothing in your deck yet. Add a word above, or open the lists.
+            </li>
+          ) : null}
+          {tab === "lists" && libraryRows.length === 0 ? (
+            <li className="py-8 text-sm text-muted">No word matches.</li>
+          ) : null}
+          {tab === "mine"
+            ? deckRows.map((word, index) => {
+                const row = progress[word.id];
+                const status =
+                  !row || row.retired
+                    ? row?.retired
+                      ? "Retired"
+                      : "Not started"
+                    : isNewState(row.card.state)
+                      ? "Not started"
+                      : dueLabel(row.card.due);
+                const leech = (row?.failCount ?? 0) >= LEECH_AT;
+                return (
+                  <m.li
+                    key={word.id}
+                    className="border-b border-line"
+                    initial={reduced || index >= 10 ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={
+                      reduced
+                        ? { duration: 0 }
+                        : { duration: 0.3, delay: index < 10 ? index * 0.03 : 0 }
+                    }
+                  >
+                    <Link
+                      to="/words/$wordId"
+                      params={{ wordId: word.id }}
+                      className="flex min-h-14 items-center justify-between gap-4 py-3"
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-display text-2xl tracking-tight">
+                          {word.lemma}
+                        </span>
+                        <span
+                          lang="ar"
+                          dir="rtl"
+                          className="font-arabic mt-0.5 block text-sm text-muted"
+                        >
+                          {row?.arabic ?? word.ar}
+                        </span>
+                        {word.source === "mine" ? (
+                          <span className="text-xs text-muted">
+                            {word.topic === "mine" ? "Pick a group" : topicLabel(word.topic)}
+                          </span>
+                        ) : null}
+                        {row?.hasPicture ? (
+                          <span className="ml-2 text-xs text-muted">Picture</span>
+                        ) : null}
+                        {leech ? <span className="ml-2 text-xs text-accent">Flagged</span> : null}
+                      </span>
+                      <span className="shrink-0 text-sm text-muted">{status}</span>
+                    </Link>
+                  </m.li>
+                );
+              })
+            : libraryRows.slice(0, limit).map((word, index) => {
+                const inDeck = Boolean(progress[word.id]);
+                return (
+                  <m.li
+                    key={word.id}
+                    className="flex min-h-14 items-center justify-between gap-3 border-b border-line py-3"
+                    initial={reduced || index >= 10 ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={
+                      reduced
+                        ? { duration: 0 }
+                        : { duration: 0.3, delay: index < 10 ? index * 0.03 : 0 }
+                    }
                   >
                     <span className="min-w-0">
-                      <span className="block font-display text-2xl tracking-tight">{word.lemma}</span>
-                      <span lang="ar" dir="rtl" className="font-arabic mt-0.5 block text-sm text-muted">
-                        {row?.arabic ?? word.ar}
+                      <span className="font-display text-2xl tracking-tight">{word.lemma}</span>
+                      <span lang="ar" dir="rtl" className="font-arabic ms-2 text-sm text-muted">
+                        {word.ar}
                       </span>
-                      {word.source === "mine" ? (
-                        <span className="text-xs text-muted">
-                          {word.topic === "mine" ? "Pick a group" : topicLabel(word.topic)}
-                        </span>
-                      ) : null}
-                      {row?.hasPicture ? <span className="ml-2 text-xs text-muted">Picture</span> : null}
-                      {leech ? <span className="ml-2 text-xs text-accent">Flagged</span> : null}
+                      <span className="mt-1 block text-xs text-muted">
+                        {topicLabel(word.topic)}
+                      </span>
                     </span>
-                    <span className="shrink-0 text-sm text-muted">{status}</span>
-                  </Link>
-                </li>
-              );
-            })
-          : libraryRows.slice(0, limit).map((word) => {
-              const inDeck = Boolean(progress[word.id]);
-              return (
-                <li key={word.id} className="flex min-h-14 items-center justify-between gap-3 border-b border-line py-3">
-                  <span className="min-w-0">
-                    <span className="font-display text-2xl tracking-tight">{word.lemma}</span>
-                    <span lang="ar" dir="rtl" className="font-arabic ms-2 text-sm text-muted">
-                      {word.ar}
-                    </span>
-                    <span className="mt-1 block text-xs text-muted">{topicLabel(word.topic)}</span>
-                  </span>
-                  {inDeck ? (
-                    <span className="shrink-0 text-sm text-muted">In your words</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-accent px-4 text-sm font-medium text-paper"
-                      onClick={() => void addToDeck([word.id])}
-                    >
-                      Add
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-        {tab === "lists" && libraryRows.length > limit ? (
-          <li className="py-4">
-            <button
-              type="button"
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-line bg-card text-sm"
-              onClick={() => setLimit((value) => value + 60)}
-            >
-              Show more
-            </button>
-          </li>
-        ) : null}
-      </ul>
+                    {inDeck ? (
+                      <span className="shrink-0 text-sm text-muted">In your words</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-accent px-4 text-sm font-medium text-paper"
+                        onClick={() => void addToDeck([word.id])}
+                      >
+                        Add
+                      </button>
+                    )}
+                  </m.li>
+                );
+              })}
+          {tab === "lists" && libraryRows.length > limit ? (
+            <li className="py-4">
+              <button
+                type="button"
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-line bg-card text-sm"
+                onClick={() => setLimit((value) => value + 60)}
+              >
+                Show more
+              </button>
+            </li>
+          ) : null}
+        </ul>
       )}
     </Frame>
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"

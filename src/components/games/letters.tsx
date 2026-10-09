@@ -8,6 +8,10 @@ import { usePracticeClock } from "@/lib/cards/clock";
 import { playEffect, playFinish } from "@/lib/cards/sounds";
 import { speakEnglish } from "@/lib/cards/speech";
 import { useVault } from "@/lib/cards/store";
+import { haptics } from "@/lib/motion/haptics";
+import { EASE } from "@/lib/motion/tokens";
+import { useReducedMotion } from "@/lib/motion/use-reduced-motion";
+import { m } from "motion/react";
 import { EMPTY_TALLY, ScoreReport, Sparkles, addTap, type Tally } from "@/components/score-report";
 import type { GradeName } from "@/lib/cards/types";
 
@@ -24,8 +28,12 @@ export function LettersGame({ topic }: { topic?: string }) {
   const [tally, setTally] = useState<Tally>(EMPTY_TALLY);
   const lock = useRef(false);
   const playedEnd = useRef(false);
+  const reduced = useReducedMotion();
 
-  const pack = useMemo(() => letterRound(useVault.getState().progress, topic, seen), [round, seen, topic]);
+  const pack = useMemo(
+    () => letterRound(useVault.getState().progress, topic, seen),
+    [round, seen, topic],
+  );
   const card = pack[cursor];
   usePracticeClock(card != null);
   const finished = pack.length > 0 && !card;
@@ -40,7 +48,11 @@ export function LettersGame({ topic }: { topic?: string }) {
     if (tally.attempts < 1) return;
     playFinish(tally.correct === tally.attempts);
   }, [finished, markPracticeDay, tally.attempts, tally.correct]);
-  const picture = useLocalPicture(card?.id ?? null, card?.hasPicture ?? false, card?.pictureRev ?? 0);
+  const picture = useLocalPicture(
+    card?.id ?? null,
+    card?.hasPicture ?? false,
+    card?.pictureRev ?? 0,
+  );
 
   const choices = useMemo(() => {
     if (!card) return [];
@@ -52,11 +64,16 @@ export function LettersGame({ topic }: { topic?: string }) {
   if (pack.length === 0) {
     return (
       <GameFrame title="Missing letter" topic={topic}>
-        <p className="font-display text-4xl tracking-tight text-balance">Not enough words for this one.</p>
+        <p className="font-display text-4xl tracking-tight text-balance">
+          Not enough words for this one.
+        </p>
         <p className="mt-3 text-pretty text-muted">
           It needs words of at least three letters. Match and Connect work with short words too.
         </p>
-        <Link to="/play" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper">
+        <Link
+          to="/play"
+          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper"
+        >
           Other games
         </Link>
       </GameFrame>
@@ -70,14 +87,21 @@ export function LettersGame({ topic }: { topic?: string }) {
         <h1 className="mt-2 font-display text-5xl tracking-tight">Round done.</h1>
         <ScoreReport tally={tally} />
         <p className="mt-3 text-pretty text-muted">
-          You can play it again now. A miss comes back into the cards. A right answer does not push a word further away.
+          You can play it again now. A miss comes back into the cards. A right answer does not push
+          a word further away.
         </p>
         <button
           type="button"
           className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper"
           onClick={() => {
             const progress = useVault.getState().progress;
-            setSeen((current) => nextSeen(current, pack.map((word) => word.id), gamePoolSize(progress, topic, true)));
+            setSeen((current) =>
+              nextSeen(
+                current,
+                pack.map((word) => word.id),
+                gamePoolSize(progress, topic, true),
+              ),
+            );
             setRound((value) => value + 1);
             setCursor(0);
             setPicked(null);
@@ -102,6 +126,8 @@ export function LettersGame({ topic }: { topic?: string }) {
     const right = letter === answer;
     setTally((current) => addTap(current, right));
     playEffect(right ? "correct" : "incorrect");
+    if (right) haptics.correct();
+    else haptics.wrong();
     window.setTimeout(() => speakEnglish(card.lemma), 450);
     const rating: GradeName = letter !== answer ? "again" : helped ? "hard" : "good";
     try {
@@ -134,10 +160,16 @@ export function LettersGame({ topic }: { topic?: string }) {
           <img src={picture} alt="" className="max-h-full max-w-full object-contain" />
         </div>
       ) : null}
-      <p className="mt-6 font-display text-5xl leading-none tracking-tight" aria-label={picked ? card.lemma : "Word with a missing letter"}>
+      <p
+        className="mt-6 font-display text-5xl leading-none tracking-tight"
+        aria-label={picked ? card.lemma : "Word with a missing letter"}
+      >
         {chars.map((char, index) =>
           index === card.index ? (
-            <span key={index} className="mx-0.5 inline-block min-w-8 border-b-2 border-accent text-center text-accent">
+            <span
+              key={index}
+              className="mx-0.5 inline-block min-w-8 border-b-2 border-accent text-center text-accent"
+            >
               {picked ? answer : "\u00a0"}
             </span>
           ) : (
@@ -146,7 +178,13 @@ export function LettersGame({ topic }: { topic?: string }) {
         )}
       </p>
       <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="text-sm text-muted">{picked ? (right ? "That's the letter." : "Not that letter.") : "Which letter is missing?"}</p>
+        <p className="text-sm text-muted">
+          {picked
+            ? right
+              ? "That's the letter."
+              : "Not that letter."
+            : "Which letter is missing?"}
+        </p>
         <button
           type="button"
           className="inline-flex size-11 items-center justify-center rounded-full border border-line"
@@ -165,27 +203,60 @@ export function LettersGame({ topic }: { topic?: string }) {
         </p>
       ) : null}
       <div className="mt-6 grid grid-cols-3 gap-2">
-        {choices.map((letter) => (
-          <button
-            key={letter}
-            type="button"
-            disabled={picked != null}
-            onClick={() => void choose(letter)}
-            className={`relative min-h-14 rounded-2xl border text-xl font-medium uppercase ${
-              picked && letter === answer
-                ? "border-accent bg-accent text-paper"
-                : picked === letter
-                  ? "answer-wrong"
-                  : "border-line bg-card"
-            } ${picked && !right && letter === answer ? "shake" : ""}`}
-          >
-            {picked && right && letter === answer ? <Sparkles /> : null}
-            {letter}
-          </button>
-        ))}
+        {choices.map((letter, index) => {
+          const correct = picked && letter === answer;
+          const wrongPick = picked === letter && !right;
+          const revealShake = picked && !right && letter === answer;
+          const animate =
+            revealShake && !reduced
+              ? {
+                  opacity: 1,
+                  x: [0, -6, 6, 0],
+                  scale: 1,
+                  transition: { duration: 0.42, times: [0, 0.25, 0.75, 1] },
+                }
+              : correct && !reduced
+                ? {
+                    opacity: 1,
+                    x: 0,
+                    scale: [1, 1.08, 1],
+                    transition: { duration: 0.5, ease: EASE.standard },
+                  }
+                : {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    transition: { duration: 0.3, delay: Math.min(index, 8) * 0.04 },
+                  };
+          return (
+            <m.button
+              key={letter}
+              type="button"
+              data-tile=""
+              disabled={picked != null}
+              onClick={() => void choose(letter)}
+              className={`relative min-h-14 rounded-2xl border text-xl font-medium uppercase ${
+                correct
+                  ? "border-accent bg-accent text-paper"
+                  : wrongPick
+                    ? "answer-wrong"
+                    : "border-line bg-card"
+              }`}
+              initial={reduced ? false : { opacity: 0, scale: 0.88 }}
+              animate={animate}
+            >
+              {picked && right && letter === answer ? <Sparkles /> : null}
+              {letter}
+            </m.button>
+          );
+        })}
       </div>
       {picked && !right ? (
-        <button type="button" onClick={next} className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper">
+        <button
+          type="button"
+          onClick={next}
+          className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-paper"
+        >
           Next word
         </button>
       ) : null}
@@ -205,7 +276,11 @@ export function GameFrame({
   return (
     <Frame>
       <header className="safe-top px-5 pb-2">
-        <Link to="/play" search={topic ? { topic } : {}} className="inline-flex min-h-11 items-center text-sm text-muted">
+        <Link
+          to="/play"
+          search={topic ? { topic } : {}}
+          className="inline-flex min-h-11 items-center text-sm text-muted"
+        >
           Games
         </Link>
         <h1 className="font-display text-4xl tracking-tight">{title}</h1>

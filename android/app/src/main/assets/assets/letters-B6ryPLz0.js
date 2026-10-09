@@ -1,0 +1,1 @@
+import{Cn as e,D as t,j as n,t as r}from"./store-BenE7y6u.js";import{r as i}from"./index-DOL2fYNU.js";import{n as a}from"./letters-BZKhd-sb.js";var o=e();function s(){let e=r(e=>e.ready),s=r(e=>e.listsReady),c=r(e=>e.error),{topic:l}=i.useSearch();return c?(0,o.jsx)(n,{message:c}):!e||!s?(0,o.jsx)(t,{}):(0,o.jsx)(a,{topic:l})}export{s as component};

@@ -179,7 +179,8 @@ function WordDetail({ wordId }: { wordId: string }) {
           ) : null}
           {progress.credit ? (
             <a href={progress.credit.sourceUrl} className="mt-2 block text-xs text-muted" target="_blank" rel="noreferrer">
-              Photo by {progress.credit.creator} · {progress.credit.license}
+              Photo by {progress.credit.creator}
+              {progress.credit.license ? ` · ${progress.credit.license}` : ""}
             </a>
           ) : null}
           {word.abstract && !progress.hasPicture ? (
